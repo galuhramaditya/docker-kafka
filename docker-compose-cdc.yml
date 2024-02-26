@@ -1,0 +1,122 @@
+services:
+  zookeeper:
+    image: quay.io/debezium/zookeeper:latest
+    hostname: zookeeper
+    container_name: kafka-zookeeper
+    ports:
+      - 21810:2181
+      - 28880:2888
+      - 38880:3888
+    networks:
+      - dibimbing
+
+  kafka:
+    image: quay.io/debezium/kafka:latest
+    hostname: kafka
+    container_name: kafka-broker-1
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+      - "9999:9999"
+    environment:
+      ZOOKEEPER_CONNECT: "zookeeper:2181"
+    depends_on:
+      - zookeeper
+    networks:
+      - dibimbing
+
+  kafka-schema-registry:
+    image: confluentinc/cp-schema-registry:7.3.2
+    hostname: kafka-schema-registry
+    container_name: kafka-schema-registry
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: kafka-schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    depends_on:
+      - zookeeper
+      - kafka
+    networks:
+      - dibimbing
+
+  kafka-rest-proxy:
+    image: confluentinc/cp-kafka-rest:7.3.2
+    hostname: kafka-rest-proxy
+    container_name: kafka-rest-proxy
+    ports:
+      - "8082:8082"
+    environment:
+      # KAFKA_REST_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_REST_LISTENERS: http://0.0.0.0:8082/
+      KAFKA_REST_SCHEMA_REGISTRY_URL: http://kafka-schema-registry:8081/
+      KAFKA_REST_HOST_NAME: kafka-rest-proxy
+      KAFKA_REST_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+    depends_on:
+      - zookeeper
+      - kafka
+      - kafka-schema-registry
+    networks:
+      - dibimbing
+
+  kafka-connect:
+    image: quay.io/debezium/connect:latest
+    hostname: kafka-connect
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+    depends_on:
+      - zookeeper
+      - kafka
+      - kafka-schema-registry
+      - kafka-rest-proxy
+    networks:
+      - dibimbing
+
+  ksqldb-server:
+    image: confluentinc/cp-ksqldb-server:7.3.2
+    hostname: ksqldb-server
+    container_name: kafka-ksqldb-server
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      KSQL_LISTENERS: http://0.0.0.0:8088/
+      KSQL_KSQL_SERVICE_ID: ksqldb-server_
+    depends_on:
+      - zookeeper
+      - kafka
+    networks:
+      - dibimbing
+
+  ksqldb-cli:
+    image: confluentinc/ksqldb-cli:0.29.0
+    container_name: kafka-ksqldb-cli
+    depends_on:
+      - kafka
+      - ksqldb-server
+    entrypoint: /bin/sh
+    tty: true
+    networks:
+      - dibimbing
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - 9000:8080
+    environment:
+      DYNAMIC_CONFIG_ENABLED: 'true'
+    networks:
+      - dibimbing
+
+networks:
+  dibimbing:
+    external: true
