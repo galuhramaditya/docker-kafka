@@ -1,6 +1,6 @@
 services:
   zookeeper:
-    image: quay.io/debezium/zookeeper:latest
+    image: quay.io/debezium/zookeeper:1.9
     hostname: zookeeper
     container_name: kafka-zookeeper
     ports:
@@ -11,9 +11,9 @@ services:
       - dibimbing
 
   kafka:
-    image: quay.io/debezium/kafka:latest
+    image: quay.io/debezium/kafka:1.9
     hostname: kafka
-    container_name: kafka-broker-1
+    container_name: kafka-broker
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -61,7 +61,8 @@ services:
       - dibimbing
 
   kafka-connect:
-    image: quay.io/debezium/connect:latest
+    build:
+      context: debezium-jdbc
     hostname: kafka-connect
     container_name: kafka-connect
     ports:
